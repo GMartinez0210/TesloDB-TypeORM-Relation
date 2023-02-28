@@ -24,6 +24,12 @@ export class Product {
   description: string;
 
   @Column({
+    type: 'text',
+    nullable: true,
+  })
+  slug: string;
+
+  @Column({
     type: 'numeric',
     default: 0,
   })
@@ -38,5 +44,5 @@ export class Product {
   @Column({
     type: 'text',
   })
-  gender: 'masculine' | 'femenine' | 'kids' | 'unisex';
+  gender: 'men' | 'women' | 'kids' | 'unisex';
 }
