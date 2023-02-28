@@ -17,9 +17,9 @@ npm install
 3.- Copy the `.env.template` file and change its name to `.env` and replace the variables with your own variables
 
 4.- Run the following command to up the database
-´´´
+```
 docker-compose up -d
-´´´
+```
 
 5.- Run the complete app with `npm run start:dev`
 ```
