@@ -7,8 +7,8 @@ import {
   IsPositive,
   Min,
   IsInt,
+  IsIn,
 } from 'class-validator';
-import { IsIn } from 'class-validator/types/decorator/decorators';
 
 export class CreateProductDto {
   @IsString()
@@ -40,4 +40,9 @@ export class CreateProductDto {
   @IsString()
   @IsIn(['men', 'women', 'kids', 'unisex'])
   gender: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tags?: string[];
 }
