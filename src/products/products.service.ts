@@ -5,21 +5,28 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { DeepPartial, ObjectLiteral, Repository } from 'typeorm';
+import { DataSource, DeepPartial, ObjectLiteral, Repository } from 'typeorm';
 
 import { Product, ProductImage } from './entities';
 
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import {
+  IParamsForGetNewProductImages,
+  IParamsForGetProductImages,
+} from './interface/params.interface';
 
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+
     @InjectRepository(ProductImage)
     private readonly productImageRepository: Repository<ProductImage>,
+
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(createProductDto: CreateProductDto) {
@@ -114,19 +121,17 @@ export class ProductsService {
 
   async updateOne(id: string, updateProductDto: UpdateProductDto) {
     try {
-      const { images: productImages } = updateProductDto;
+      const { images: productImages, ...spreadUpdateProductDto } =
+        updateProductDto;
 
-      const images = productImages.map((url) =>
-        this.productImageRepository.create({ url }),
-      );
-
-      const productInstance: DeepPartial<Product> = {
-        ...updateProductDto,
+      const productInstancePreload = {
+        ...spreadUpdateProductDto,
         id,
-        images,
       };
 
-      const product = await this.productRepository.preload(productInstance);
+      const product = await this.productRepository.preload(
+        productInstancePreload,
+      );
 
       if (!product) {
         throw new NotFoundException({
@@ -134,7 +139,32 @@ export class ProductsService {
         });
       }
 
-      await this.productRepository.save(product);
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      try {
+        const paramsForGetNewProductImages: IParamsForGetNewProductImages = {
+          id,
+          product,
+          queryRunner,
+          productImages,
+        };
+
+        const paramsForGetProductImages: IParamsForGetProductImages = {
+          id,
+        };
+
+        product.images = productImages
+          ? await this.getNewProductImages(paramsForGetNewProductImages)
+          : await this.getProductImages(paramsForGetProductImages);
+
+        await queryRunner.manager.save(product);
+        await queryRunner.commitTransaction();
+        await queryRunner.release();
+      } catch (err) {
+        await queryRunner.rollbackTransaction();
+      }
 
       return product;
     } catch (error) {
@@ -185,5 +215,31 @@ export class ProductsService {
       console.log('Error | create | product service');
       throw new InternalServerErrorException({ error });
     }
+  }
+
+  async getNewProductImages(
+    params: IParamsForGetNewProductImages,
+  ): Promise<ProductImage[]> {
+    const { id, queryRunner, productImages } = params;
+
+    await queryRunner.manager.delete(ProductImage, { product: { id } });
+
+    const images = productImages.map((url) =>
+      this.productImageRepository.create({ url }),
+    );
+
+    return images;
+  }
+
+  async getProductImages(
+    params: IParamsForGetProductImages,
+  ): Promise<ProductImage[]> {
+    const { id } = params;
+
+    const images = await this.productImageRepository.find({
+      where: { product: { id } },
+    });
+
+    return images;
   }
 }
