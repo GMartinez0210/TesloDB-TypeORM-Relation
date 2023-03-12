@@ -6,7 +6,7 @@
 
 1.- Clone this repository using the following git command 
 ```
-git clone https://github.com/GMartinez0210/TESLODB-TYPEORM.git
+git clone https://github.com/GMartinez0210/TesloDB-TypeORM-Relation.git
 ```
 
 2.- Install the all dependencies.
