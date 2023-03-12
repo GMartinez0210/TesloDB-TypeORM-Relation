@@ -13,8 +13,8 @@ import {
 import { ObjectLiteral } from 'typeorm';
 
 import { ProductsService } from './products.service';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
+import { CreateProductDto } from './dtos/create-product.dto';
+import { UpdateProductDto } from './dtos/update-product.dto';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 
 @Controller('products')
@@ -22,8 +22,8 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Post()
-  async create(@Body() createProductDto: CreateProductDto) {
-    return await this.productsService.create(createProductDto);
+  async createOne(@Body() createProductDto: CreateProductDto) {
+    return await this.productsService.createOne(createProductDto);
   }
 
   @Get()
@@ -53,7 +53,7 @@ export class ProductsController {
   }
 
   @Patch(':id')
-  async update(
+  async updateOne(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateProductDto: UpdateProductDto,
   ) {
@@ -61,7 +61,7 @@ export class ProductsController {
   }
 
   @Delete(':id')
-  async remove(@Param('id', ParseUUIDPipe) id: string) {
+  async removeOne(@Param('id', ParseUUIDPipe) id: string) {
     return await this.productsService.removeOne(id);
   }
 }

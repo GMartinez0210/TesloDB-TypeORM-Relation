@@ -25,3 +25,8 @@ docker-compose up -d
 ```
 npm run start:dev
 ```
+
+6.- Run the endpoint `seed` to get an initial data (optional)
+```
+http://localhost:3000/api/seed
+```

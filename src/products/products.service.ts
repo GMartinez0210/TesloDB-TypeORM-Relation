@@ -5,17 +5,25 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { DataSource, DeepPartial, ObjectLiteral, Repository } from 'typeorm';
+import {
+  DataSource,
+  DeepPartial,
+  ObjectLiteral,
+  QueryRunner,
+  Repository,
+  SelectQueryBuilder,
+} from 'typeorm';
 
 import { Product, ProductImage } from './entities';
 
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
+import { CreateProductDto } from './dtos/create-product.dto';
+import { UpdateProductDto } from './dtos/update-product.dto';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
+
 import {
   IParamsForGetNewProductImages,
   IParamsForGetProductImages,
-} from './interface/params.interface';
+} from './interfaces/params.interface';
 
 @Injectable()
 export class ProductsService {
@@ -29,20 +37,20 @@ export class ProductsService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async create(createProductDto: CreateProductDto) {
+  async createOne(createProductDto: CreateProductDto): Promise<Product> {
     try {
       const { images: productImages } = createProductDto;
 
-      const images = productImages.map((url) =>
+      const images: ProductImage[] = productImages.map((url) =>
         this.productImageRepository.create({ url }),
       );
 
-      const productInstance = {
+      const productInstance: DeepPartial<Product> = {
         ...createProductDto,
         images,
       };
 
-      const product = this.productRepository.create(productInstance);
+      const product: Product = this.productRepository.create(productInstance);
       await this.productRepository.save(product);
 
       return product;
@@ -52,10 +60,10 @@ export class ProductsService {
     }
   }
 
-  async findAll(pagination: PaginationDto) {
+  async findAll(pagination: PaginationDto): Promise<Product[]> {
     try {
       const { offset: skip, limit: take = 5 } = pagination;
-      const products = await this.productRepository.find({
+      const products: Product[] = await this.productRepository.find({
         skip,
         take,
         relations: {
@@ -70,9 +78,10 @@ export class ProductsService {
     }
   }
 
-  async findOne(query: ObjectLiteral) {
+  async findOne(query: ObjectLiteral): Promise<Product> {
     try {
-      const queryBuilder = this.productRepository.createQueryBuilder('product');
+      const queryBuilder: SelectQueryBuilder<Product> =
+        this.productRepository.createQueryBuilder('product');
       queryBuilder.where('UPPER(product.title) = :title', {
         title: query.title.toUpperCase(),
       });
@@ -97,7 +106,7 @@ export class ProductsService {
     }
   }
 
-  async findOneById(id: string) {
+  async findOneById(id: string): Promise<Product> {
     try {
       const product = await this.productRepository.findOne({
         where: { id },
@@ -119,17 +128,20 @@ export class ProductsService {
     }
   }
 
-  async updateOne(id: string, updateProductDto: UpdateProductDto) {
+  async updateOne(
+    id: string,
+    updateProductDto: UpdateProductDto,
+  ): Promise<Product> {
     try {
       const { images: productImages, ...spreadUpdateProductDto } =
         updateProductDto;
 
-      const productInstancePreload = {
+      const productInstancePreload: DeepPartial<Product> = {
         ...spreadUpdateProductDto,
         id,
       };
 
-      const product = await this.productRepository.preload(
+      const product: Product = await this.productRepository.preload(
         productInstancePreload,
       );
 
@@ -139,7 +151,7 @@ export class ProductsService {
         });
       }
 
-      const queryRunner = this.dataSource.createQueryRunner();
+      const queryRunner: QueryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction();
 
@@ -164,6 +176,7 @@ export class ProductsService {
         await queryRunner.release();
       } catch (err) {
         await queryRunner.rollbackTransaction();
+        await queryRunner.release();
       }
 
       return product;
@@ -198,9 +211,11 @@ export class ProductsService {
     */
   }
 
-  async removeOne(id: string) {
+  async removeOne(id: string): Promise<Product> {
     try {
-      const product = await this.productRepository.findOne({ where: { id } });
+      const product: Product = await this.productRepository.findOne({
+        where: { id },
+      });
 
       if (!product) {
         throw new NotFoundException({
@@ -217,26 +232,35 @@ export class ProductsService {
     }
   }
 
-  async getNewProductImages(
+  async removeAll(): Promise<void> {
+    const queryBuilder: SelectQueryBuilder<Product> =
+      this.productRepository.createQueryBuilder('product');
+    queryBuilder.where({});
+    queryBuilder.delete();
+
+    await queryBuilder.execute();
+  }
+
+  private async getNewProductImages(
     params: IParamsForGetNewProductImages,
   ): Promise<ProductImage[]> {
     const { id, queryRunner, productImages } = params;
 
     await queryRunner.manager.delete(ProductImage, { product: { id } });
 
-    const images = productImages.map((url) =>
+    const images: ProductImage[] = productImages.map((url) =>
       this.productImageRepository.create({ url }),
     );
 
     return images;
   }
 
-  async getProductImages(
+  private async getProductImages(
     params: IParamsForGetProductImages,
   ): Promise<ProductImage[]> {
     const { id } = params;
 
-    const images = await this.productImageRepository.find({
+    const images: ProductImage[] = await this.productImageRepository.find({
       where: { product: { id } },
     });
 
